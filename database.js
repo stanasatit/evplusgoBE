@@ -1,9 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = new Database(path.join(__dirname, '/database/evplusgoDB.sqlite'), {
-  verbose: console.log,
-});
+const db = new Database(path.join(__dirname, '/database/evplusgoDB.sqlite'));
 
 // เปิด WAL mode เพื่อประสิทธิภาพที่ดีขึ้น
 db.pragma('journal_mode = WAL');
@@ -38,7 +36,6 @@ const newColumns = [
 for (const col of newColumns) {
   if (!existingColumns.includes(col.name)) {
     db.exec(`ALTER TABLE users ADD COLUMN ${col.name} ${col.def};`);
-    console.log(`Migration: added column "${col.name}" to users`);
   }
 }
 
@@ -88,7 +85,6 @@ if (statusCount.c === 0) {
     ['MAINTENANCE',  'ซ่อมบำรุง',     'อยู่ระหว่างซ่อมบำรุง'],
     ['OFFLINE',      'ออฟไลน์',       'ตู้ชาร์จไม่พร้อมให้บริการ'],
   ].forEach(([code, name, desc]) => insertStatus.run(code, name, desc));
-  console.log('Seeded: station_service_status');
 }
 
 // ============================================================
@@ -115,7 +111,6 @@ db.exec(`
 const evCarColumns = db.pragma('table_info(ev_car_master)').map((col) => col.name);
 if (!evCarColumns.includes('image_car_url')) {
   db.exec('ALTER TABLE ev_car_master ADD COLUMN image_car_url TEXT;');
-  console.log('Migration: added column "image_car_url" to ev_car_master');
 }
 
 // Seed ข้อมูลเริ่มต้น ev_car_master
@@ -157,7 +152,7 @@ if (carCount.c === 0) {
   ].forEach(([brand, model, year, bat, range, type, img]) =>
     insertCar.run(brand, model, year, bat, range, type, img)
   );
-  console.log('Seeded: ev_car_master');
+  //console.log('Seeded: ev_car_master');
 }
 
 // ============================================================
@@ -205,7 +200,7 @@ const newStationCols = [
 for (const col of newStationCols) {
   if (!stationColumns.includes(col.name)) {
     db.exec(`ALTER TABLE charging_stations ADD COLUMN ${col.name} ${col.def};`);
-    console.log(`Migration: added column "${col.name}" to charging_stations`);
+    //console.log(`Migration: added column "${col.name}" to charging_stations`);
   }
 }
 
@@ -234,7 +229,7 @@ if (stationCount.c === 0) {
   ].forEach(([name, address, lat, long, total, sid, pcode, pname, ctype, pmin, pmax, pm, pp, pop, idle]) =>
     insertStation.run(name, address, lat, long, total, sid, pcode, pname, ctype, pmin, pmax, pm, pp, pop, idle)
   );
-  console.log('Seeded: charging_stations');
+  //console.log('Seeded: charging_stations');
 }
 
 // ============================================================
@@ -286,22 +281,18 @@ db.exec(`
 const bookingColsCheck = db.pragma('table_info(bookings)').map((c) => c.name);
 if (!bookingColsCheck.includes('queue_number')) {
   db.exec('ALTER TABLE bookings ADD COLUMN queue_number INTEGER;');
-  console.log('Migration: added queue_number to bookings');
 }
 if (!bookingColsCheck.includes('booking_type')) {
   db.exec("ALTER TABLE bookings ADD COLUMN booking_type TEXT DEFAULT 'SCHEDULED';");
-  console.log('Migration: added booking_type to bookings');
 }
 
 // Migration: เพิ่ม notify columns ใน bookings
 const bookingCols = db.pragma('table_info(bookings)').map((c) => c.name);
 if (!bookingCols.includes('notify_remind_sent_at')) {
   db.exec('ALTER TABLE bookings ADD COLUMN notify_remind_sent_at TEXT;');
-  console.log('Migration: added notify_remind_sent_at to bookings');
 }
 if (!bookingCols.includes('notify_end_sent_at')) {
   db.exec('ALTER TABLE bookings ADD COLUMN notify_end_sent_at TEXT;');
-  console.log('Migration: added notify_end_sent_at to bookings');
 }
 
 // ============================================================
@@ -335,7 +326,7 @@ if (pricingCount.c === 0) {
     INSERT INTO pricing_config (station_id, name, rate_per_kwh, service_fee, min_charge_fee, vat_percent, effective_from, is_active, note, created_by, updated_by)
     VALUES (NULL, 'อัตรามาตรฐาน', 6.5, 10.0, 20.0, 7.0, '2026-01-01', 1, 'อัตราค่าบริการมาตรฐานทั่วไป', 'system', 'system')
   `).run();
-  console.log('Seeded: pricing_config');
+  //console.log('Seeded: pricing_config');
 }
 
 // ============================================================
@@ -370,6 +361,6 @@ db.exec(`
   );
 `);
 
-console.log('Database initialized: evplusgoDB.sqlite');
+//console.log('Database initialized: evplusgoDB.sqlite');
 
 module.exports = db;
