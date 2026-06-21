@@ -282,6 +282,28 @@ db.exec(`
   );
 `);
 
+// Migration: เพิ่ม columns ใน bookings
+const bookingColsCheck = db.pragma('table_info(bookings)').map((c) => c.name);
+if (!bookingColsCheck.includes('queue_number')) {
+  db.exec('ALTER TABLE bookings ADD COLUMN queue_number INTEGER;');
+  console.log('Migration: added queue_number to bookings');
+}
+if (!bookingColsCheck.includes('booking_type')) {
+  db.exec("ALTER TABLE bookings ADD COLUMN booking_type TEXT DEFAULT 'SCHEDULED';");
+  console.log('Migration: added booking_type to bookings');
+}
+
+// Migration: เพิ่ม notify columns ใน bookings
+const bookingCols = db.pragma('table_info(bookings)').map((c) => c.name);
+if (!bookingCols.includes('notify_remind_sent_at')) {
+  db.exec('ALTER TABLE bookings ADD COLUMN notify_remind_sent_at TEXT;');
+  console.log('Migration: added notify_remind_sent_at to bookings');
+}
+if (!bookingCols.includes('notify_end_sent_at')) {
+  db.exec('ALTER TABLE bookings ADD COLUMN notify_end_sent_at TEXT;');
+  console.log('Migration: added notify_end_sent_at to bookings');
+}
+
 // ============================================================
 // Config อัตราค่าบริการ
 // ============================================================

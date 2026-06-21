@@ -19,10 +19,19 @@ const options = {
       { name: 'User Vehicle', description: 'รถ EV ของผู้ใช้งาน' },
       { name: 'Booking', description: 'การจองตู้ชาร์จ' },
       { name: 'Pricing Config', description: 'กำหนดอัตราค่าบริการและคำนวณค่าใช้จ่าย' },
+      { name: 'Charging Fee', description: 'คำนวณค่าบริการชาร์จ, ประมาณการ และเปรียบเทียบสถานี' },
       { name: 'Charging Session', description: 'ประวัติการชาร์จและค่าบริการแต่ละรอบ' },
       { name: 'Notification', description: 'ส่ง push notification และจัดการ topic' },
     ],
     components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'ใส่ token จาก POST /user/login → access_token',
+        },
+      },
       schemas: {
         UserObject: {
           type: 'object',

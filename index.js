@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -14,6 +15,9 @@ const userVehicleRouter = require('./routes/userVehicle');
 const bookingRouter = require('./routes/booking');
 const chargingSessionRouter = require('./routes/chargingSession');
 const pricingConfigRouter = require('./routes/pricingConfig');
+const chargingFeeRouter = require('./routes/chargingFee');
+const { setMessaging: setNotifierMessaging, startScheduler } = require('./services/bookingNotifier');
+const { authenticate } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,8 +25,26 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Swagger UI
+// Swagger UI (public — ก่อน auth middleware)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// ============================================================
+// Public paths — ไม่ต้อง JWT
+// ============================================================
+const PUBLIC_ROUTES = [
+  { method: 'GET',  path: '/' },
+  { method: 'POST', path: '/user/register' },
+  { method: 'POST', path: '/user/login' },
+  { method: 'POST', path: '/user/refresh' },
+];
+
+app.use((req, res, next) => {
+  const isPublic = PUBLIC_ROUTES.some(
+    (r) => r.method === req.method && req.path === r.path,
+  ) || req.path.startsWith('/api-docs');
+  if (isPublic) return next();
+  authenticate(req, res, next);
+});
 
 // Initialize Firebase Admin SDK
 try {
@@ -30,6 +52,8 @@ try {
   initializeApp({ credential: cert(serviceAccount) });
   const messaging = getMessaging();
   setMessaging(messaging);
+  setNotifierMessaging(messaging);
+  startScheduler();
   console.log('Firebase Admin SDK initialized successfully');
 } catch (error) {
   console.error('Failed to initialize Firebase:', error.message);
@@ -48,6 +72,7 @@ app.use('/user-vehicle', userVehicleRouter);
 app.use('/booking', bookingRouter);
 app.use('/charging-session', chargingSessionRouter);
 app.use('/pricing-config', pricingConfigRouter);
+app.use('/charging-fee', chargingFeeRouter);
 
 // ============================================================
 // Health Check
