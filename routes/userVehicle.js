@@ -175,4 +175,30 @@ router.put('/:id', (req, res) => {
   res.json({ success: true, message: 'แก้ไขข้อมูลรถ EV สำเร็จ', data: item });
 });
 
+/**
+ * @swagger
+ * /user-vehicle/{id}:
+ *   delete:
+ *     tags: [User Vehicle]
+ *     summary: ลบข้อมูลรถ EV ตาม ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *         description: ID ของรถ EV ที่ต้องการลบ
+ *     responses:
+ *       200:
+ *         description: ลบสำเร็จ
+ *       404:
+ *         description: ไม่พบข้อมูล
+ */
+router.delete('/:id', (req, res) => {
+  const existing = db.prepare('SELECT id FROM user_vehicles WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ success: false, error: 'ไม่พบข้อมูลรถ EV' });
+
+  db.prepare('DELETE FROM user_vehicles WHERE id = ?').run(req.params.id);
+  res.json({ success: true, message: 'ลบข้อมูลรถ EV สำเร็จ' });
+});
+
 module.exports = router;

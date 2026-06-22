@@ -23,6 +23,7 @@ const options = {
       { name: 'Charging Session', description: 'ประวัติการชาร์จและค่าบริการแต่ละรอบ' },
       { name: 'Notification', description: 'ส่ง push notification และจัดการ topic' },
     ],
+    security: [{ bearerAuth: [] }],
     components: {
       securitySchemes: {
         bearerAuth: {

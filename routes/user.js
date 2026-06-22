@@ -56,6 +56,28 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ success: false, error: 'username และ password จำเป็นต้องระบุ' });
 
   try {
+    const existingUsername = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+    if (existingUsername)
+      return res.status(400).json({ success: false, error: 'username นี้ถูกใช้งานแล้ว' });
+
+    if (email) {
+      const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+      if (existingEmail)
+        return res.status(400).json({ success: false, error: 'email นี้ถูกใช้งานแล้ว' });
+    }
+
+    if (phone) {
+      const existingPhone = db.prepare('SELECT id FROM users WHERE phone = ?').get(phone);
+      if (existingPhone)
+        return res.status(400).json({ success: false, error: 'เบอร์โทรศัพท์นี้ถูกใช้งานแล้ว' });
+    }
+
+    if (line_id) {
+      const existingLineId = db.prepare('SELECT id FROM users WHERE line_id = ?').get(line_id);
+      if (existingLineId)
+        return res.status(400).json({ success: false, error: 'Line ID นี้ถูกใช้งานแล้ว' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const stmt = db.prepare(`
       INSERT INTO users (username, password, birthday, phone, line_id, email, image_base64, created_by, updated_by)
@@ -168,7 +190,7 @@ router.post('/refresh', (req, res) => {
       return res.status(401).json({ success: false, error: 'token ประเภทไม่ถูกต้อง' });
 
     const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(payload.id);
-    if (!user) return res.status(401).json({ success: false, error: 'ไม่พบผู้ใช้' });
+    if (!user) return res.status(401).json({ success: false, error: 'ไม่พบผู้ใช้งานในระบบ' });
 
     const access_token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
     res.json({ success: true, access_token, token_type: 'Bearer', expires_in: JWT_EXPIRES_IN });
@@ -199,7 +221,7 @@ router.get('/me', authenticate, (req, res) => {
   const user = db.prepare(
     'SELECT id, username, birthday, phone, line_id, email, image_base64, created_at FROM users WHERE id = ?'
   ).get(req.user.id);
-  if (!user) return res.status(404).json({ success: false, error: 'ไม่พบผู้ใช้' });
+  if (!user) return res.status(404).json({ success: false, error: 'ไม่พบผู้ใช้งานในระบบ' });
   res.json({ success: true, user });
 });
 
@@ -264,6 +286,95 @@ router.put('/me', authenticate, async (req, res) => {
 });
 
 // ============================================================
+// POST /user/forgot-password — ค้นหาผู้ใช้จาก username
+// ============================================================
+/**
+ * @swagger
+ * /user/forgot-password:
+ *   post:
+ *     tags: [User]
+ *     summary: ค้นหาข้อมูลผู้ใช้จาก username สำหรับ forgot password flow
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username]
+ *             properties:
+ *               username: { type: string, example: john_doe }
+ *     responses:
+ *       200:
+ *         description: พบผู้ใช้
+ *       400:
+ *         description: ไม่ได้ระบุ username
+ *       404:
+ *         description: ไม่พบผู้ใช้งานในระบบ
+ */
+router.post('/forgot-password', (req, res) => {
+  const { username } = req.body;
+
+  if (!username)
+    return res.status(400).json({ success: false, error: 'กรุณาระบุ username' });
+
+  const user = db.prepare(
+    'SELECT id, username, email, phone FROM users WHERE username = ?'
+  ).get(username);
+
+  if (!user) return res.status(404).json({ success: false, error: 'ไม่พบผู้ใช้งานในระบบ' });
+
+  res.json({ success: true, user });
+});
+
+// ============================================================
+// POST /user/reset-password — รีเซ็ตรหัสผ่าน (ไม่ต้องยืนยันตัวตน)
+// ============================================================
+/**
+ * @swagger
+ * /user/reset-password:
+ *   post:
+ *     tags: [User]
+ *     summary: รีเซ็ตรหัสผ่านด้วย username
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, new_password]
+ *             properties:
+ *               username:     { type: string, example: john_doe }
+ *               new_password: { type: string, example: "newSecret123" }
+ *     responses:
+ *       200:
+ *         description: รีเซ็ตรหัสผ่านสำเร็จ
+ *       400:
+ *         description: ข้อมูลไม่ครบถ้วน
+ *       404:
+ *         description: ไม่พบผู้ใช้งานในระบบ
+ */
+router.post('/reset-password', async (req, res) => {
+  const { username, new_password } = req.body;
+
+  if (!username || !new_password)
+    return res.status(400).json({ success: false, error: 'กรุณาระบุ username และ new_password' });
+
+  try {
+    const user = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
+    if (!user) return res.status(404).json({ success: false, error: 'ไม่พบผู้ใช้งานในระบบ' });
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+    db.prepare(`
+      UPDATE users SET password = ?, updated_at = datetime('now','localtime'), updated_by = ? WHERE id = ?
+    `).run(hashedPassword, user.username, user.id);
+
+    res.json({ success: true, message: 'รีเซ็ตรหัสผ่านสำเร็จ' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
 // GET /user/list — ดูรายชื่อ users ทั้งหมด
 // ============================================================
 /**
@@ -316,7 +427,7 @@ router.get('/list', (req, res) => {
  *                 user:
  *                   $ref: '#/components/schemas/UserObject'
  *       404:
- *         description: ไม่พบผู้ใช้
+ *         description: ไม่พบผู้ใช้งานในระบบ
  *         content:
  *           application/json:
  *             schema:
@@ -327,7 +438,7 @@ router.get('/:id', (req, res) => {
     SELECT id, username, birthday, phone, line_id, email, image_base64, created_at, created_by, updated_at, updated_by
     FROM users WHERE id = ?
   `).get(req.params.id);
-  if (!user) return res.status(404).json({ success: false, error: 'ไม่พบผู้ใช้' });
+  if (!user) return res.status(404).json({ success: false, error: 'ไม่พบผู้ใช้งานในระบบ' });
   res.json({ success: true, user });
 });
 

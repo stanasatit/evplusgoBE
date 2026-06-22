@@ -311,6 +311,7 @@ router.post('/', (req, res) => {
  *               booking_date: { type: string }
  *               start_time:   { type: string }
  *               end_time:     { type: string }
+ *               booking_type: { type: string, example: SCHEDULED }
  *               status_id:    { type: integer }
  *               note:         { type: string }
  *               username:     { type: string, example: john_doe }
@@ -321,7 +322,7 @@ router.post('/', (req, res) => {
  *         description: ไม่พบข้อมูล
  */
 router.put('/:id', (req, res) => {
-  const { station_id, vehicle_id, booking_date, start_time, end_time, status_id, note, username } = req.body;
+  const { station_id, vehicle_id, booking_date, start_time, end_time, booking_type, status_id, note, username } = req.body;
   if (!username) return res.status(400).json({ success: false, error: 'username จำเป็นต้องระบุ' });
 
   const existing = db.prepare('SELECT id FROM bookings WHERE id = ?').get(req.params.id);
@@ -332,10 +333,10 @@ router.put('/:id', (req, res) => {
     SET station_id = COALESCE(?, station_id), vehicle_id = COALESCE(?, vehicle_id),
         booking_date = COALESCE(?, booking_date), start_time = COALESCE(?, start_time),
         end_time = COALESCE(?, end_time), status_id = COALESCE(?, status_id),
-        note = COALESCE(?, note),
+        note = COALESCE(?, note), booking_type = COALESCE(?, booking_type),
         updated_at = datetime('now', 'localtime'), updated_by = ?
     WHERE id = ?
-  `).run(station_id, vehicle_id, booking_date, start_time, end_time, status_id, note, username, req.params.id);
+  `).run(station_id, vehicle_id, booking_date, start_time, end_time, status_id, note, booking_type, username, req.params.id);
 
   const item = db.prepare(`${bookingWithDetails} WHERE b.id = ?`).get(req.params.id);
   res.json({ success: true, message: 'แก้ไขการจองสำเร็จ', data: item });

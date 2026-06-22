@@ -50,6 +50,62 @@ router.get('/', (req, res) => {
 
 /**
  * @swagger
+ * /charging-station/nearby:
+ *   get:
+ *     tags: [Charging Station]
+ *     summary: ค้นหาสถานีชาร์จใกล้เคียงจาก lat/long
+ *     parameters:
+ *       - in: query
+ *         name: lat
+ *         required: true
+ *         schema: { type: number }
+ *         description: ละติจูด
+ *       - in: query
+ *         name: long
+ *         required: true
+ *         schema: { type: number }
+ *         description: ลองจิจูด
+ *       - in: query
+ *         name: radius
+ *         schema: { type: number, default: 50 }
+ *         description: รัศมีค้นหา (กิโลเมตร, default 50)
+ *     responses:
+ *       200:
+ *         description: รายการสถานีชาร์จเรียงตามระยะทาง
+ *       400:
+ *         description: ไม่ได้ระบุ lat หรือ long
+ */
+router.get('/nearby', (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const long = parseFloat(req.query.long);
+  const radius = parseFloat(req.query.radius) || 50;
+
+  if (isNaN(lat) || isNaN(long))
+    return res.status(400).json({ success: false, error: 'กรุณาระบุ lat และ long' });
+
+  const stations = db.prepare(`${stationWithStatus}`).all();
+
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const result = stations
+    .map((s) => ({ ...s, distance_km: parseFloat(haversine(lat, long, s.lat, s.long).toFixed(2)) }))
+    .filter((s) => s.distance_km <= radius)
+    .sort((a, b) => a.distance_km - b.distance_km);
+
+  res.json({ success: true, count: result.length, lat, long, radius_km: radius, data: result });
+});
+
+/**
+ * @swagger
  * /charging-station/{id}:
  *   get:
  *     tags: [Charging Station]

@@ -36,6 +36,8 @@ const PUBLIC_ROUTES = [
   { method: 'POST', path: '/user/register' },
   { method: 'POST', path: '/user/login' },
   { method: 'POST', path: '/user/refresh' },
+  { method: 'POST', path: '/user/forgot-password' },
+  { method: 'POST', path: '/user/reset-password' },
 ];
 
 app.use((req, res, next) => {
